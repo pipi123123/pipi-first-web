@@ -6,5 +6,5 @@ import path from 'path'
 export default defineConfig({
   plugins: [vue()],
   resolve: { alias: { '@': path.resolve(__dirname, './src') } },
-  base: '/pipi-first-web/'  // 這裡改成你的 repo 名稱
+  base: '/pipi-first-web/'   // ← 必須與你的 repo 名稱相同
 })
