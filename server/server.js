@@ -3,21 +3,20 @@ import cors from 'cors'
 
 const app = express()
 
-// 允許的前端來源（依你的實際網域調整）
 const allowed = [
   'http://localhost:5173',
-  'https://pipi-first-web.onrender.com',  // Render 靜態站
-  'https://pipi123123.github.io'          // 若你還用 GH Pages
+  'https://pipi-first-web.onrender.com',
+  'https://pipi123123.github.io'
 ]
 app.use(cors({ origin: allowed }))
 app.use(express.json())
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }))
 
-// 兩個備援代理（避免 COA 直接擋）
-const COA = 'https://data.coa.gov.tw/Service/OpenData/AnimalOpenData.aspx?$top=50&$skip=0'
-const P1  = `https://r.jina.ai/http://data.coa.gov.tw/Service/OpenData/AnimalOpenData.aspx?$top=50&$skip=0`
-const P2  = `https://cors.isomorphic-git.org/${COA}`
+const QS = '?%24top=50&%24skip=0'
+const COA = `https://data.coa.gov.tw/Service/OpenData/AnimalOpenData.aspx${QS}`
+const P1  = `https://r.jina.ai/http://data.coa.gov.tw/Service/OpenData/AnimalOpenData.aspx${QS}`
+const P2  = `https://cors.isomorphic-git.org/https://data.coa.gov.tw/Service/OpenData/AnimalOpenData.aspx${QS}`
 
 async function fetchText(url, ms = 20000) {
   const ctrl = new AbortController()
@@ -46,29 +45,32 @@ function safeParseJSON(txt) {
   } catch { return null }
 }
 
+async function fetchAsJson(url, ms) {
+  const txt = await fetchText(url, ms)
+  return safeParseJSON(txt)
+}
+
 app.get('/api/adopt', async (_req, res) => {
-  // 依序嘗試：COA → r.jina.ai → isomorphic-git CORS
-  for (const [name, url, isText] of [
-    ['COA', COA, false],
-    ['JINA', P1, true],
-    ['ISO', P2, false],
-  ]) {
+  const urls = [
+    ['COA', COA],
+    ['JINA', P1],
+    ['ISO', P2],
+  ]
+
+  for (const [name, url] of urls) {
     try {
-      const data = isText
-        ? safeParseJSON(await fetchText(url))
-        : await (await fetch(url, { headers: { 'User-Agent':'furfriends/1.0', 'Accept':'application/json' }, cache:'no-store' })).json()
-
-      if (Array.isArray(data)) return res.json(data)
-      // 有些代理會回字串，試圖解析
-      const arr = Array.isArray(data) ? data : safeParseJSON(data)
-      if (Array.isArray(arr)) return res.json(arr)
-
+      const data = await fetchAsJson(`${url}&_ts=${Date.now()}`)
+      if (Array.isArray(data)) {
+        console.log(`[${name}] 成功，筆數:`, data.length)
+        return res.json(data)
+      }
       console.error(`[${name}] 非陣列回應`)
     } catch (e) {
-      console.error(`[${name}] 失敗:`, e?.name || '', e?.message || e)
+      console.error(`[${name}] 失敗:`, e?.message || e)
     }
   }
-  return res.status(502).json({ message: 'Fetch failed', detail: 'JINA/ISO/COA all failed' })
+
+  res.status(502).json({ message: 'Fetch failed', detail: 'JINA/ISO/COA all failed' })
 })
 
 app.get('/', (_req, res) => {
