@@ -1,62 +1,91 @@
+// server/server.js
 import express from 'express'
 import cors from 'cors'
-import axios from 'axios'
 
 const app = express()
 
-// 允許的前端（依你的實際域名調整）
+// 允許的前端來源（請保留你的正式網域）
 const allowed = [
   'http://localhost:5173',
-  'https://pipi-first-web.onrender.com',   // 你的前端（Render 靜態站）
-  'https://pipi123123.github.io'           // 如果你還有 GitHub Pages
+  'https://pipi-first-web.onrender.com'
 ]
 app.use(cors({ origin: allowed }))
 app.use(express.json())
 
+// 健康檢查
 app.get('/api/health', (_req, res) => res.json({ ok: true }))
 
-// 直接走 r.jina.ai 公開代理（把 http:// 放在後面是它的規則）
-const JINA_URL =
-  'https://r.jina.ai/http://data.coa.gov.tw/Service/OpenData/AnimalOpenData.aspx?$top=50&$skip=0'
+// 目標（COA）
+const COA_PATH = 'data.coa.gov.tw/Service/OpenData/AnimalOpenData.aspx?$top=50&$skip=0'
 
-app.get('/api/adopt', async (_req, res) => {
+// 代理 1：r.jina.ai（用 https 前綴）
+const JINA_URL = `https://r.jina.ai/https://${COA_PATH}`
+// 代理 2：isomorphic-git（有時更穩）
+const ISO_URL  = `https://cors.isomorphic-git.org/https://${COA_PATH}`
+
+// 小工具：安全 JSON 解析（去掉 BOM／多餘空白）
+function safeParseJSON(text) {
+  const cleaned = String(text ?? '').replace(/^\uFEFF/, '').trim()
+  return JSON.parse(cleaned)
+}
+
+// 除錯用：看代理現在回什麼
+app.get('/api/ping', async (_req, res) => {
   try {
-    // r.jina.ai 回來通常是「純文字」，所以先當作 text 拿，再手動 JSON.parse
-    const r = await axios.get(JINA_URL, {
-      timeout: 20000,
-      responseType: 'text',
+    const r = await fetch(JINA_URL, {
       headers: {
-        'User-Agent': 'furfriends/1.0',
-        'Accept': 'application/json, text/plain, */*'
+        'user-agent': 'furfriends/1.0',
+        'accept': 'application/json, text/plain, */*'
       },
-      // 關閉自動轉換，以免 axios 嘗試幫你 parse 失敗
-      transformResponse: [d => d]
+      cache: 'no-store'
     })
-
-    let data
-    try {
-      data = JSON.parse(r.data)
-    } catch {
-      // 有些時候會包著 BOM 或非標準內容，這裡再寬鬆一點處理
-      const cleaned = String(r.data || '')
-        .replace(/^\uFEFF/, '') // 去掉 BOM
-        .trim()
-      data = JSON.parse(cleaned)
-    }
-
-    if (!Array.isArray(data)) data = []
-    return res.json(data)
+    const txt = await r.text()
+    return res.json({ ok: true, url: JINA_URL, status: r.status, length: txt.length })
   } catch (e) {
-    console.error('JINA proxy failed:', e?.code || '', e?.message || e)
-    return res.status(502).json({
-      message: 'Fetch failed',
-      detail: 'JINA proxy failed'
-    })
+    return res.status(502).json({ ok: false, url: JINA_URL, error: String(e?.message || e) })
   }
 })
 
+// 正式資料 API（會自動備援）
+app.get('/api/adopt', async (_req, res) => {
+  // 依序嘗試的來源
+  const SOURCES = [
+    { name: 'JINA', url: JINA_URL },
+    { name: 'ISO',  url: ISO_URL  },
+  ]
+
+  for (const s of SOURCES) {
+    try {
+      const r = await fetch(s.url, {
+        headers: {
+          'user-agent': 'furfriends/1.0',
+          'accept': 'application/json, text/plain, */*'
+        },
+        cache: 'no-store'
+      })
+      // 即使 200 以外，有些代理仍回正文，先取 text 再試著解析
+      const txt = await r.text()
+      const data = safeParseJSON(txt)
+      if (Array.isArray(data)) {
+        return res.json(data)
+      }
+      // 不是陣列就當失敗，進下一個來源
+      console.warn(`[${s.name}] unexpected payload`, typeof data)
+    } catch (e) {
+      console.warn(`[${s.name}] failed:`, e?.message || e)
+    }
+  }
+
+  // 全部失敗
+  return res.status(502).json({
+    message: 'Fetch failed',
+    detail: 'All sources failed (JINA/ISO)'
+  })
+})
+
+// 方便看服務活著
 app.get('/', (_req, res) => {
-  res.send('Furfriends API is running. Try /api/health or /api/adopt')
+  res.send('Furfriends API is running. Try /api/health, /api/ping or /api/adopt')
 })
 
 const port = process.env.PORT || 3000
