@@ -1,26 +1,32 @@
 // src/services/petService.js
-import axios from 'axios'
-
-// 後端網址：優先用環境變數 VITE_API_URL；
-// 如果沒設，就用目前網域（方便在 Render 靜態站上自動對同網域後端）。
+// 後端網址：優先用環境變數 VITE_API_URL；否則就用目前網域
 const API_BASE =
-  import.meta.env.VITE_API_URL?.trim() ||
-  `${window.location.protocol}//${window.location.host}`
+  (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim()) ||
+  `${window.location.protocol}//${window.location.host}`;
 
-const api = axios.create({
-  baseURL: API_BASE,
-  timeout: 15000,
-  headers: {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json'
+// 共用：用 fetch 發送請求（含 15 秒逾時）
+async function fetchJson(path, options = {}) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 15000);
+
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      signal: ctrl.signal,
+      ...options,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(t);
   }
-})
+}
 
 // 健康檢查
-export const getHealth = () => api.get('/api/health')
+export const getHealth = () => fetchJson('/api/health');
 
-// 取得認養清單（你的後端已經包好 CORS 與代理，這裡直接打）
-export const getAdoptList = () => api.get('/api/adopt')
+// 取得認養清單（你的後端已有代理與 CORS）
+export const getAdoptList = () => fetchJson('/api/adopt');
 
-// 小工具：安全取陣列（可選）
-export const toArray = (data) => (Array.isArray(data) ? data : [])
+// 小工具：安全取陣列
+export const toArray = (data) => (Array.isArray(data) ? data : []);
