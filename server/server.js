@@ -3,6 +3,7 @@ import cors from 'cors'
 
 const app = express()
 
+// 允許的前端來源
 const allowed = [
   'http://localhost:5173',
   'https://pipi-first-web.onrender.com',
@@ -13,16 +14,25 @@ app.use(express.json())
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }))
 
+// 統一把 $ 轉成 %24，代理會比較穩
 const QS = '?%24top=50&%24skip=0'
-const COA = `https://data.coa.gov.tw/Service/OpenData/AnimalOpenData.aspx${QS}`
-const P1  = `https://r.jina.ai/http://data.coa.gov.tw/Service/OpenData/AnimalOpenData.aspx${QS}`
-const P2  = `https://cors.isomorphic-git.org/https://data.coa.gov.tw/Service/OpenData/AnimalOpenData.aspx${QS}`
+const COA_HTTPS = `https://data.coa.gov.tw/Service/OpenData/AnimalOpenData.aspx${QS}`
+const COA_HTTP  = `http://data.coa.gov.tw/Service/OpenData/AnimalOpenData.aspx${QS}`
 
+// 既有 3 條
+const PROXY_JINA = `https://r.jina.ai/${COA_HTTP.replace('http://', 'http://')}` // http for jina
+const PROXY_ISO  = `https://cors.isomorphic-git.org/${COA_HTTPS}`
+
+// 新增 2 條公共代理（回 raw text）
+const PROXY_AO   = `https://api.allorigins.win/raw?url=${encodeURIComponent(COA_HTTP)}`
+const PROXY_CT   = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(COA_HTTPS)}`
+
+// 文字抓取（含逾時）
 async function fetchText(url, ms = 20000) {
   const ctrl = new AbortController()
   const t = setTimeout(() => ctrl.abort(), ms)
   try {
-    const r = await fetch(url, {
+    const r = await fetch(url + (url.includes('?') ? '&' : '?') + `_ts=${Date.now()}`, {
       signal: ctrl.signal,
       headers: {
         'User-Agent': 'furfriends/1.0',
@@ -37,6 +47,7 @@ async function fetchText(url, ms = 20000) {
   }
 }
 
+// 安全 JSON 解析
 function safeParseJSON(txt) {
   try { return JSON.parse(txt) } catch {}
   try {
@@ -51,26 +62,31 @@ async function fetchAsJson(url, ms) {
 }
 
 app.get('/api/adopt', async (_req, res) => {
-  const urls = [
-    ['COA', COA],
-    ['JINA', P1],
-    ['ISO', P2],
+  // 試的順序：JINA → ISO → COA → AllOrigins → CodeTabs
+  const sources = [
+    ['JINA', PROXY_JINA],
+    ['ISO',  PROXY_ISO],
+    ['COA',  COA_HTTPS],
+    ['AO',   PROXY_AO],
+    ['CT',   PROXY_CT],
   ]
 
-  for (const [name, url] of urls) {
+  for (const [name, url] of sources) {
     try {
-      const data = await fetchAsJson(`${url}&_ts=${Date.now()}`)
+      const data = await fetchAsJson(url, 20000)
       if (Array.isArray(data)) {
-        console.log(`[${name}] 成功，筆數:`, data.length)
+        console.log(`[${name}] OK, count=${data.length}`)
+        // 可選：快取 5 分鐘，提高穩定度
+        res.set('Cache-Control', 'public, max-age=300')
         return res.json(data)
       }
-      console.error(`[${name}] 非陣列回應`)
+      console.warn(`[${name}] 非陣列/解析失敗`)
     } catch (e) {
-      console.error(`[${name}] 失敗:`, e?.message || e)
+      console.warn(`[${name}] 失敗:`, e?.message || e)
     }
   }
 
-  res.status(502).json({ message: 'Fetch failed', detail: 'JINA/ISO/COA all failed' })
+  return res.status(502).json({ message: 'Fetch failed', detail: 'All sources failed (JINA/ISO/COA/AO/CT)' })
 })
 
 app.get('/', (_req, res) => {
