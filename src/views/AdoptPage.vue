@@ -27,15 +27,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import PetCard from '@/components/PetCard.vue'
-
-// 官方 API：農委會收容動物認領養資料
-const API = 'https://data.coa.gov.tw/Service/OpenData/AnimalOpenData.aspx'
+import { getAdoptList } from '@/services/petService'   // ✅ 改成呼叫自己的 API
 
 const loading = ref(true)
 const error = ref('')
 const pets = ref([])
 
-// 把官方欄位轉成 PetCard 需要的結構
+// 把 API 回傳欄位轉成 PetCard 需要的結構
 function mapToPetCard(item) {
   const name = `${item.animal_kind || '動物'}${item.animal_sex ? `（${item.animal_sex}）` : ''}`
   const descParts = [
@@ -57,11 +55,9 @@ function noop() {
 
 onMounted(async () => {
   try {
-    const res = await fetch(API)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const data = await res.json()
+    const data = await getAdoptList()               // ✅ 用 services 取資料
     pets.value = (Array.isArray(data) ? data : []).map(mapToPetCard)
-    // 如果想限制顯示筆數： .slice(0, 60)
+    // 想限制顯示筆數可加： .slice(0, 60)
   } catch (e) {
     error.value = String(e?.message || e)
   } finally {
