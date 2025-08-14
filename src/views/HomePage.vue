@@ -7,6 +7,8 @@
     <router-link to="/publish" class="btn">前往刊登平台</router-link>
     &nbsp;
     <router-link to="/adopt" class="btn">官方認養資訊</router-link> <!-- ⬅️ 新增 -->
+    &nbsp;
+    <router-link to="/shelters" class="btn">查看收容所</router-link> <!-- 新增 -->
   </div>
 </template>
 
