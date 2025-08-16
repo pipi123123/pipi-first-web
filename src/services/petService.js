@@ -50,10 +50,52 @@ export const getHealth = () => fetchJson('/api/health');
  * 可帶 { top, skip }，預設 50/0
  * 後端會再去打 MOA OpenData。
  */
-export const getAdoptList = ({ top = 50, skip = 0 } = {}) => {
+export const getAdoptList = async ({ top = 50, skip = 0 } = {}) => {
   const qs = new URLSearchParams({ top: String(top), skip: String(skip) }).toString();
-  return fetchJson(`/api/adopt?${qs}`);
+  const raw = await fetchJson(`/api/adopt?${qs}`);
+  return normalizeAdopts(raw);
 };
+
+// adopt 資料正規化：政府原始欄位 → 前端需要的欄位
+function normalizeAdopts(data) {
+  const arr = Array.isArray(data) ? data : [];
+
+  return arr.map((x) => {
+    const id = strOrEmpty(x.animal_id ?? x.id);
+    const name = strOrEmpty(x.animal_kind ?? x.name ?? '動物');
+    const sex = x.animal_sex === 'M' ? '公' : x.animal_sex === 'F' ? '母' : '未知';
+    const color = strOrEmpty(x.animal_colour);
+    const age = strOrEmpty(x.animal_age);
+    const remark = strOrEmpty(x.animal_remark);
+
+    // 關鍵：結紮/疫苗轉中文
+    const spay =
+      x.animal_sterilization === 'T'
+        ? '已結紮'
+        : x.animal_sterilization === 'F'
+        ? '未結紮'
+        : '未知';
+
+    const vaccine =
+      x.animal_bacterin === 'T'
+        ? '已施打'
+        : x.animal_bacterin === 'F'
+        ? '未施打'
+        : '未知';
+
+    return {
+      id,
+      name,
+      sex,
+      color,
+      age,
+      remark,
+      spay,
+      vaccine,
+      raw: x, // 保留原始資料給需要的地方
+    };
+  });
+}
 
 /**
  * 取得全台收容所清單（/api/shelters 等別名）

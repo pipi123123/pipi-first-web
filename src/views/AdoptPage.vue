@@ -96,26 +96,22 @@ import { ref, computed, onMounted, watch } from 'vue'
 import PetCard from '@/components/PetCard.vue'
 import { getAdoptList } from '@/services/petService'
 
-/** -------------------------
- *  狀態
- *  ------------------------*/
 const loading = ref(true)
 const error = ref('')
-
-const raw = ref([])                 // 原始陣列（MOA）
+const raw = ref([])         // 可能是 MOA 原始陣列，或是正規化後的陣列（含 raw）
 const page = ref(1)
 const pageSize = 24
 
 // 篩選條件
 const kw = ref('')
-const kind = ref('ALL')             // 'ALL' | '狗' | '貓'
-const sex  = ref('ALL')             // 'ALL' | 'M'  | 'F'
-const shelter = ref('')             // shelter_name
+const kind = ref('ALL')     // 'ALL' | '狗' | '貓'
+const sex  = ref('ALL')     // 'ALL' | 'M'  | 'F'
+const shelter = ref('')     // shelter_name
 const onlyWithImage = ref(false)
 
-/** -------------------------
- *  取資料
- *  ------------------------*/
+// 安全取欄位：優先取 x[key]，否則取 x.raw?.[key]
+const pick = (x, key, d = '') => (x?.[key] ?? x?.raw?.[key] ?? d)
+
 async function reload () {
   loading.value = true
   error.value = ''
@@ -131,12 +127,10 @@ async function reload () {
   }
 }
 
-/** -------------------------
- *  篩選 + 搜尋
- *  ------------------------*/
+// 下拉選單：唯一的收容所名稱
 const shelterOptions = computed(() => {
   const set = new Set(
-    raw.value.map(x => (x.shelter_name || '').trim()).filter(Boolean)
+    raw.value.map(x => (pick(x, 'shelter_name', '') || '').trim()).filter(Boolean)
   )
   return Array.from(set).sort((a, b) => a.localeCompare(b, 'zh-Hant'))
 })
@@ -145,37 +139,39 @@ const filtered = computed(() => {
   const q = kw.value.trim().toLowerCase()
   let arr = raw.value
 
+  // 有照片
   if (onlyWithImage.value) {
-    arr = arr.filter(x => !!x.album_file)
+    arr = arr.filter(x => !!pick(x, 'album_file', ''))
   }
 
+  // 種類 / 性別 / 收容所
   if (kind.value !== 'ALL') {
-    arr = arr.filter(x => x.animal_kind === kind.value)
+    arr = arr.filter(x => pick(x, 'animal_kind', '') === kind.value)
   }
   if (sex.value !== 'ALL') {
-    arr = arr.filter(x => x.animal_sex === sex.value)
+    arr = arr.filter(x => pick(x, 'animal_sex', '') === sex.value)
   }
   if (shelter.value) {
-    arr = arr.filter(x => x.shelter_name === shelter.value)
+    arr = arr.filter(x => pick(x, 'shelter_name', '') === shelter.value)
   }
 
+  // 關鍵字（品種 / 收容所 / 毛色 / 地點）
   if (q) {
     arr = arr.filter(x => {
       const blob = [
-        x.animal_variety || x.animal_Variety,
-        x.shelter_name,
-        x.animal_colour,
-        x.animal_place,
-        x.animal_foundplace
+        pick(x, 'animal_variety', pick(x, 'animal_Variety', '')),
+        pick(x, 'shelter_name', ''),
+        pick(x, 'animal_colour', ''),
+        pick(x, 'animal_place', pick(x, 'animal_foundplace', '')),
       ].filter(Boolean).join(' ').toLowerCase()
       return blob.includes(q)
     })
   }
 
-  // 讓較新的（更新時間較晚）排前面，沒有就維持原順序
+  // 依更新時間新到舊（取不到就當 0）
   arr = [...arr].sort((a, b) => {
-    const ta = Date.parse(a.animal_update || '') || 0
-    const tb = Date.parse(b.animal_update || '') || 0
+    const ta = Date.parse(pick(a, 'animal_update', '')) || 0
+    const tb = Date.parse(pick(b, 'animal_update', '')) || 0
     return tb - ta
   })
 
@@ -184,9 +180,7 @@ const filtered = computed(() => {
 
 const filteredCount = computed(() => filtered.value.length)
 
-/** -------------------------
- *  分頁 + 映射成卡片（符合 PetCard 欄位）
- *  ------------------------*/
+// 分頁 + 卡片映射
 const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize)))
 const startIndex = computed(() => (page.value - 1) * pageSize)
 const endIndex   = computed(() => Math.min(filtered.value.length, startIndex.value + pageSize))
@@ -196,51 +190,56 @@ const visiblePets = computed(() => {
   return pageSlice.map(mapToPetCard)
 })
 
-// 將 MOA 欄位 → PetCard 需要的鍵
+// 轉成 PetCard 欄位
 function mapToPetCard (x) {
-  // 來源常見欄位對照：
-  // album_file, animal_kind, animal_sex, animal_Variety/animal_variety, animal_subid, animal_id,
-  // animal_age, animal_colour, animal_sterilization, animal_bacterin, animal_update,
-  // shelter_name, shelter_tel, shelter_address, animal_lat, animal_lng, animal_place/foundplace
-  const id   = x.animal_id || x.animal_subid || `${x.animal_kind}-${x.shelter_name}-${Math.random().toString(16).slice(2)}`
+  const id   = pick(x, 'animal_id', '') || pick(x, 'animal_subid', '') ||
+               `${pick(x, 'animal_kind', '動物')}-${pick(x, 'shelter_name', '')}-${Math.random().toString(16).slice(2)}`
+  const kind = pick(x, 'animal_kind', '')
+  const sex  = pick(x, 'animal_sex', '')
+
+  // 來源可能是 MOA 原始欄位（album_file 等），或我正規化後的 raw 內欄位
+  const image = pick(x, 'album_file', '') || 'https://placehold.co/800x600?text=No+Image'
+
+  // 結紮 / 疫苗：同時支援 MOA（animal_sterilization/animal_bacterin）與正規化（spay/vaccine）
+  const neuterYN  = normalizeYN(pick(x, 'animal_sterilization', pick(x, 'spay', '')))
+  const vaccineYN = normalizeYN(pick(x, 'animal_bacterin',     pick(x, 'vaccine', '')))
+
   return {
     id,
-    // 卡片抬頭與圖片
-    image: x.album_file || 'https://placehold.co/800x600?text=No+Image',
-    name: `${x.animal_kind || '動物'}${x.animal_sex ? `（${x.animal_sex}）` : ''}`,
+    image,
+    name: `${kind || '動物'}${sex ? `（${sex}）` : ''}`,
 
-    // 右上角徽章用
-    kind: x.animal_kind || '',
-    sex: x.animal_sex || '',
+    kind,
+    sex,
 
-    // 基本屬性
-    variety: x.animal_Variety || x.animal_variety || '',
-    code: x.animal_subid || x.animal_id || '',
-    age: x.animal_age || '',
-    color: x.animal_colour || '',
-    neuter: normalizeYN(x.animal_sterilization),
-    vaccine: normalizeYN(x.animal_bacterin),
-    update: x.animal_update || '',
+    variety: pick(x, 'animal_Variety', pick(x, 'animal_variety', '')),
+    code: pick(x, 'animal_subid', pick(x, 'animal_id', '')),
+    age: pick(x, 'animal_age', ''),
+    color: pick(x, 'animal_colour', ''),
+    neuter: neuterYN,    // 'Y' | 'N' | 'U'
+    vaccine: vaccineYN,  // 'Y' | 'N' | 'U'
+    update: pick(x, 'animal_update', ''),
 
-    // 收容所資訊
-    shelterName: x.shelter_name || '',
-    phone: x.shelter_tel || '',
-    address: x.shelter_address || '',
-    lat: x.animal_lat || '',
-    lon: x.animal_lng || '',
+    shelterName: pick(x, 'shelter_name', ''),
+    phone: pick(x, 'shelter_tel', ''),
+    address: pick(x, 'shelter_address', ''),
+    lat: pick(x, 'animal_lat', ''),
+    lon: pick(x, 'animal_lng', ''),
   }
 }
 
+/**
+ * 將多種格式轉為 'Y' / 'N' / 'U'
+ * 可處理：'Y'/'N'、'T'/'F'、1/0、true/false、'已結紮'/'未結紮'、'已施打'/'未施打'
+ */
 function normalizeYN (v) {
-  // 來源可能是 'Y' | 'N' | 'U' | ''，PetCard 只要 Y/N/未知 即可
-  if (v === 'Y' || v === true) return 'Y'
-  if (v === 'N' || v === false) return 'N'
+  const s = String(v ?? '').trim().toUpperCase()
+  if (s === 'Y' || s === 'T' || s === '1' || s === 'TRUE' || s === '已結紮' || s === '已施打') return 'Y'
+  if (s === 'N' || s === 'F' || s === '0' || s === 'FALSE' || s === '未結紮' || s === '未施打') return 'N'
   return 'U'
 }
 
-/** -------------------------
- *  分頁控制 & 互動
- *  ------------------------*/
+// 分頁控制
 function toFirstPage () { page.value = 1 }
 function prevPage () { if (page.value > 1) page.value-- }
 function nextPage () { if (page.value < totalPages.value) page.value++ }
@@ -254,12 +253,8 @@ function clearFilters () {
   page.value = 1
 }
 
-/** -------------------------
- *  初始化
- *  ------------------------*/
 onMounted(reload)
 
-// 當過濾後頁碼超出範圍，自動回到最後一頁
 watch([filtered], () => {
   if (page.value > totalPages.value) page.value = totalPages.value
 })
