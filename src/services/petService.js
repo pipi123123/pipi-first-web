@@ -6,7 +6,7 @@ const rawBase =
   `${window.location.protocol}//${window.location.host}`;
 
 // 去掉最後的斜線，避免 //api/xxx
-const API_BASE = rawBase.replace(/\/+$/, "");
+const API_BASE = rawBase.replace(/\/+$/, '');
 
 // 共用：用 fetch 發送請求（含 15 秒逾時）
 // options 仍可傳 method / body / headers
@@ -15,11 +15,11 @@ async function fetchJson(path, options = {}) {
   const timer = setTimeout(() => ctrl.abort(), 15000);
 
   try {
-    const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+    const url = `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
     const res = await fetch(url, {
-      // GET 不一定要帶 content-type，這裡僅 Accept JSON
-      headers: { Accept: "application/json", ...(options.headers || {}) },
+      headers: { Accept: 'application/json', ...(options.headers || {}) },
       signal: ctrl.signal,
+      cache: 'no-store',
       ...options,
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -39,25 +39,79 @@ async function getFirstOk(paths) {
       lastErr = e;
     }
   }
-  throw lastErr || new Error("All endpoints failed");
+  throw lastErr || new Error('All endpoints failed');
 }
 
 // 健康檢查
-export const getHealth = () => fetchJson("/api/health");
+export const getHealth = () => fetchJson('/api/health');
 
-// 取得認養清單（可選 top/skip，預設 50/0）
+/**
+ * 取得官方認養清單（/api/adopt）
+ * 可帶 { top, skip }，預設 50/0
+ * 後端會再去打 MOA OpenData。
+ */
 export const getAdoptList = ({ top = 50, skip = 0 } = {}) => {
   const qs = new URLSearchParams({ top: String(top), skip: String(skip) }).toString();
   return fetchJson(`/api/adopt?${qs}`);
 };
 
-// 取得全台收容所清單（自動嘗試多個常見路徑，擇一成功）
-export const getShelters = () =>
-  getFirstOk([
-    "/api/shelters",        // 建議你的 Worker 走這個
-    "/api/prime-shelters",  // 你若用到「農業部多元格式參考資料」可對應這個
-    "/api/shelter-list",    // 備用別名
+/**
+ * 取得全台收容所清單（/api/shelters 等別名）
+ * 後端回傳的是政府欄位：
+ * ID / ShelterName / CityName / Address / Phone / OpenTime / Lon / Lat / Seq
+ * 這裡統一映射成前端表格需要的欄位：
+ * id / seq / name / cityCode / phone / openTime / address / lon / lat
+ *
+ * @param {string=} cityCode 可選，若傳入則在前端做一次過濾
+ */
+export async function getShelters(cityCode) {
+  // 你後端同時提供了這三個別名，挑一個成功就用
+  const raw = await getFirstOk([
+    '/api/shelters',
+    '/api/prime-shelters',
+    '/api/shelter-list',
   ]);
 
-// 小工具：安全轉陣列
+  const list = normalizeShelters(raw);
+
+  // 若有帶城市代碼就先過濾一次（和頁面上 select 的值一致）
+  return cityCode
+    ? list.filter((s) => String(s.cityCode) === String(cityCode))
+    : list;
+}
+
+// —— 工具：把政府資料欄位轉成前端欄位 —— //
+function normalizeShelters(data) {
+  const arr = Array.isArray(data) ? data : [];
+
+  return arr.map((x) => {
+    const id =
+      x.ID ??
+      x.id ??
+      x.Seq ??
+      ('id_' + Math.random().toString(36).slice(2, 10));
+
+    // 盡量保留原數值；如果是空字串就轉為空
+    const seq = numOrZero(x.Seq);
+    const name = strOrEmpty(x.ShelterName ?? x.name);
+    const cityCode = String(x.CityName ?? x.cityCode ?? '').trim();
+    const phone = strOrEmpty(x.Phone ?? x.phone);
+    const openTime = strOrEmpty(x.OpenTime ?? x.openTime);
+    const address = strOrEmpty(x.Address ?? x.address);
+    const lon = strOrEmpty(x.Lon ?? x.lon);
+    const lat = strOrEmpty(x.Lat ?? x.lat);
+
+    return { id, seq, name, cityCode, phone, openTime, address, lon, lat };
+  });
+}
+
+function strOrEmpty(v) {
+  return (v ?? '').toString().trim();
+}
+function numOrZero(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+// 小工具：安全轉陣列（保留給其他地方用）
 export const toArray = (data) => (Array.isArray(data) ? data : []);

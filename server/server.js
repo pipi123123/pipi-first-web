@@ -1,9 +1,10 @@
+// server/server.js
 import express from 'express'
 import cors from 'cors'
 
 const app = express()
 
-// 允許的前端來源
+// 允許的前端來源（照你原本的）
 const allowed = [
   'http://localhost:5173',
   'https://pipi-first-web.onrender.com',
@@ -12,86 +13,131 @@ const allowed = [
 app.use(cors({ origin: allowed }))
 app.use(express.json())
 
+// 健康檢查
 app.get('/api/health', (_req, res) => res.json({ ok: true }))
 
-// 統一把 $ 轉成 %24，代理會比較穩
-const QS = '?%24top=50&%24skip=0'
-const COA_HTTPS = `https://data.coa.gov.tw/Service/OpenData/AnimalOpenData.aspx${QS}`
-const COA_HTTP  = `http://data.coa.gov.tw/Service/OpenData/AnimalOpenData.aspx${QS}`
+/* =========================
+   MOA 官方資料來源（直連）
+   ========================= */
+// 認養清單（動物認領養資料）
+const MOA_ADOPT_HTTPS =
+  'https://data.moa.gov.tw/Service/OpenData/TransService.aspx?UnitId=QcbUEzN6E6DL&IsTransData=1'
 
-// 既有 3 條
-const PROXY_JINA = `https://r.jina.ai/${COA_HTTP.replace('http://', 'http://')}` // http for jina
-const PROXY_ISO  = `https://cors.isomorphic-git.org/${COA_HTTPS}`
+// 公立收容所清單（你截圖的那筆，UnitId=2thVboChxuKs）
+const MOA_SHELTER_HTTPS =
+  'https://data.moa.gov.tw/Service/OpenData/TransService.aspx?UnitId=2thVboChxuKs&IsTransData=1'
 
-// 新增 2 條公共代理（回 raw text）
-const PROXY_AO   = `https://api.allorigins.win/raw?url=${encodeURIComponent(COA_HTTP)}`
-const PROXY_CT   = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(COA_HTTPS)}`
-
-// 文字抓取（含逾時）
-async function fetchText(url, ms = 20000) {
+/* =========================
+   小工具：抓文字、解析 JSON
+   ========================= */
+async function fetchRaw(url, timeoutMs = 20000) {
   const ctrl = new AbortController()
-  const t = setTimeout(() => ctrl.abort(), ms)
+  const t = setTimeout(() => ctrl.abort(), timeoutMs)
   try {
-    const r = await fetch(url + (url.includes('?') ? '&' : '?') + `_ts=${Date.now()}`, {
+    const r = await fetch(url, {
       signal: ctrl.signal,
       headers: {
+        Accept: 'application/json, text/plain, */*',
         'User-Agent': 'furfriends/1.0',
-        'Accept': 'application/json, text/plain, */*'
+        'Cache-Control': 'no-cache'
       },
       cache: 'no-store'
     })
-    if (!r.ok) throw new Error(`HTTP ${r.status}`)
-    return await r.text()
+    const ok = r.ok
+    const status = r.status
+    const raw = await r.text()
+    return { ok, status, raw }
   } finally {
     clearTimeout(t)
   }
 }
 
-// 安全 JSON 解析
-function safeParseJSON(txt) {
-  try { return JSON.parse(txt) } catch {}
+function safeParseArrayJSON(raw) {
   try {
-    const cleaned = String(txt || '').replace(/^\uFEFF/, '').trim()
-    return JSON.parse(cleaned)
-  } catch { return null }
-}
-
-async function fetchAsJson(url, ms) {
-  const txt = await fetchText(url, ms)
-  return safeParseJSON(txt)
-}
-
-app.get('/api/adopt', async (_req, res) => {
-  // 試的順序：JINA → ISO → COA → AllOrigins → CodeTabs
-  const sources = [
-    ['JINA', PROXY_JINA],
-    ['ISO',  PROXY_ISO],
-    ['COA',  COA_HTTPS],
-    ['AO',   PROXY_AO],
-    ['CT',   PROXY_CT],
-  ]
-
-  for (const [name, url] of sources) {
-    try {
-      const data = await fetchAsJson(url, 20000)
-      if (Array.isArray(data)) {
-        console.log(`[${name}] OK, count=${data.length}`)
-        // 可選：快取 5 分鐘，提高穩定度
-        res.set('Cache-Control', 'public, max-age=300')
-        return res.json(data)
-      }
-      console.warn(`[${name}] 非陣列/解析失敗`)
-    } catch (e) {
-      console.warn(`[${name}] 失敗:`, e?.message || e)
-    }
+    const cleaned = String(raw || '').replace(/^\uFEFF/, '').trim()
+    const data = JSON.parse(cleaned)
+    return Array.isArray(data) ? data : null
+  } catch {
+    return null
   }
+}
 
-  return res.status(502).json({ message: 'Fetch failed', detail: 'All sources failed (JINA/ISO/COA/AO/CT)' })
+/* =========================
+   認養資料 API
+   GET /api/adopt
+   ========================= */
+app.get('/api/adopt', async (_req, res) => {
+  try {
+    const { ok, status, raw } = await fetchRaw(MOA_ADOPT_HTTPS)
+    if (!ok) {
+      console.warn(`[adopt:MOA] HTTP ${status}`)
+      return res.status(status).send(raw || `HTTP ${status}`)
+    }
+    const data = safeParseArrayJSON(raw)
+    if (!data) {
+      console.warn('[adopt:MOA] 非陣列或解析失敗')
+      return res.status(502).json({ message: 'Upstream is not array', preview: raw.slice(0, 300) })
+    }
+    console.log(`[adopt:MOA] OK, count=${data.length}`)
+    res.set('Cache-Control', 'public, max-age=300')
+    res.type('application/json; charset=utf-8')
+    return res.send(JSON.stringify(data))
+  } catch (e) {
+    console.error('[adopt] fetch error:', e?.message || e)
+    return res.status(502).json({ message: 'Fetch failed', error: String(e?.message || e) })
+  }
 })
 
+/* =========================
+   收容所清單 API（公立收容所）
+   GET /api/shelters
+   ========================= */
+app.get('/api/shelters', async (_req, res) => {
+  try {
+    const { ok, status, raw } = await fetchRaw(MOA_SHELTER_HTTPS)
+    if (!ok) {
+      console.warn(`[shelters:MOA] HTTP ${status}`)
+      return res.status(status).send(raw || `HTTP ${status}`)
+    }
+    const data = safeParseArrayJSON(raw)
+    if (!data) {
+      console.warn('[shelters:MOA] 非陣列或解析失敗')
+      return res.status(502).json({ message: 'Upstream is not array', preview: raw.slice(0, 300) })
+    }
+    console.log(`[shelters:MOA] OK, count=${data.length}`)
+    res.set('Cache-Control', 'public, max-age=300')
+    res.type('application/json; charset=utf-8')
+    return res.send(JSON.stringify(data))
+  } catch (e) {
+    console.error('[shelters] fetch error:', e?.message || e)
+    return res.status(502).json({ message: 'Fetch failed', error: String(e?.message || e) })
+  }
+})
+
+/* =========================
+   除錯端點（檢視原始字串）
+   ========================= */
+app.get('/api/_debug/moa/adopt', async (_req, res) => {
+  const { ok, status, raw } = await fetchRaw(MOA_ADOPT_HTTPS)
+  res.type('text/plain; charset=utf-8')
+  res.send(`ok=${ok} status=${status}\nlen=${raw?.length ?? 0}\n--- first 1000 ---\n${(raw || '').slice(0, 1000)}`)
+})
+
+app.get('/api/_debug/moa/shelters', async (_req, res) => {
+  const { ok, status, raw } = await fetchRaw(MOA_SHELTER_HTTPS)
+  res.type('text/plain; charset=utf-8')
+  res.send(`ok=${ok} status=${status}\nlen=${raw?.length ?? 0}\n--- first 1000 ---\n${(raw || '').slice(0, 1000)}`)
+})
+
+/* =========================
+   根路由
+   ========================= */
 app.get('/', (_req, res) => {
-  res.send('Furfriends API is running. Try /api/health or /api/adopt')
+  res.send('Furfriends API is running. Try /api/health, /api/adopt, /api/shelters')
 })
 
+/* =========================
+   啟動
+   ========================= */
 const port = process.env.PORT || 3000
 app.listen(port, () => console.log('API listening on', port))

@@ -1,6 +1,17 @@
 <template>
   <div class="page">
-    <h1>官方認養資訊（COA OpenData）</h1>
+    <!-- 標題 + 右側資料來源 -->
+    <div class="header">
+      <h1>收容所清單</h1>
+      <a
+        class="source-link"
+        href="https://data.gov.tw/dataset/134284"
+        target="_blank"
+        rel="noopener"
+      >
+        資料來源：政府開放資料平台－公立收容所資料
+      </a>
+    </div>
 
     <div class="toolbar">
       <input
@@ -14,9 +25,7 @@
           {{ c.label }}（{{ c.code }}）
         </option>
       </select>
-      <button @click="load" :disabled="loading">
-        重新整理
-      </button>
+      <button @click="load" :disabled="loading">重新整理</button>
     </div>
 
     <div class="table-wrap">
@@ -34,14 +43,25 @@
           <tr v-for="s in filteredSorted" :key="s.id">
             <td>{{ cityName(s.cityCode) }}</td>
             <td>{{ s.name }}</td>
-            <td><a :href="`tel:${s.phone}`">{{ s.phone }}</a></td>
+
+            <!-- 電話可點擊；若無號碼顯示 '-' -->
+            <td>
+              <template v-if="s.phone">
+                <a :href="phoneHref(s.phone)">{{ s.phone }}</a>
+              </template>
+              <template v-else>-</template>
+            </td>
+
+            <!-- 官方 OpenTime 可能含 <br/>；另外將 \n 轉 <br/> -->
             <td v-html="nl2br(s.openTime)"></td>
+
+            <!-- 有座標用座標開地圖；沒座標但有地址就用地址開地圖 -->
             <td>
               <span>{{ s.address }}</span>
               <a
-                v-if="s.lat && s.lon"
+                v-if="mapHref(s)"
                 class="map"
-                :href="`https://www.google.com/maps?q=${s.lat},${s.lon}`"
+                :href="mapHref(s)"
                 target="_blank"
                 rel="noopener"
               >
@@ -62,99 +82,114 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { getShelters } from "@/services/petService";
+import { ref, computed, onMounted } from 'vue'
+import { getShelters } from '@/services/petService'
 
-const raw = ref([]);
-const loading = ref(false);
-const error = ref("");
+const raw = ref([])
+const loading = ref(false)
+const error = ref('')
 
-const kw = ref("");
-const cityFilter = ref("");
-const sortKey = ref("seq");
-const sortAsc = ref(true);
+const kw = ref('')
+const cityFilter = ref('')
+const sortKey = ref('seq')
+const sortAsc = ref(true)
 
 // 常見城市代碼（可按需增修）
 const cityOptions = [
-  { code: "63000", label: "台北市" },
-  { code: "65000", label: "新北市" },
-  { code: "68000", label: "桃園市" },
-  { code: "66000", label: "台中市" },
-  { code: "67000", label: "台南市" },
-  { code: "64000", label: "高雄市" },
-  { code: "10017", label: "基隆市" },
-  { code: "10018", label: "新竹市" },
-  { code: "10004", label: "新竹縣" },
-  { code: "10005", label: "苗栗縣" },
-  { code: "10007", label: "彰化縣" },
-  { code: "10008", label: "南投縣" },
-  { code: "10009", label: "雲林縣" },
-  { code: "10010", label: "嘉義縣" },
-  { code: "10020", label: "嘉義市" },
-  { code: "10013", label: "屏東縣" },
-  { code: "10014", label: "台東縣" },
-  { code: "10015", label: "花蓮縣" },
-  { code: "10002", label: "宜蘭縣" },
-  { code: "10016", label: "澎湖縣" },
-  { code: "09020", label: "金門縣" },
-  { code: "09007", label: "連江縣" },
-];
+  { code: '63000', label: '台北市' },
+  { code: '65000', label: '新北市' },
+  { code: '68000', label: '桃園市' },
+  { code: '66000', label: '台中市' },
+  { code: '67000', label: '台南市' },
+  { code: '64000', label: '高雄市' },
+  { code: '10017', label: '基隆市' },
+  { code: '10018', label: '新竹市' },
+  { code: '10004', label: '新竹縣' },
+  { code: '10005', label: '苗栗縣' },
+  { code: '10007', label: '彰化縣' },
+  { code: '10008', label: '南投縣' },
+  { code: '10009', label: '雲林縣' },
+  { code: '10010', label: '嘉義縣' },
+  { code: '10020', label: '嘉義市' },
+  { code: '10013', label: '屏東縣' },
+  { code: '10014', label: '台東縣' },
+  { code: '10015', label: '花蓮縣' },
+  { code: '10002', label: '宜蘭縣' },
+  { code: '10016', label: '澎湖縣' },
+  { code: '09020', label: '金門縣' },
+  { code: '09007', label: '連江縣' }
+]
 
 function cityName(code) {
-  return cityOptions.find((x) => x.code === String(code))?.label || code || "";
+  return cityOptions.find(x => x.code === String(code))?.label || code || ''
 }
-function nl2br(s = "") {
-  // 後端資料可能含 <br/>；保留原樣或把 \n 也轉一下
-  return String(s).replace(/\n/g, "<br/>");
+function nl2br(s = '') {
+  return String(s).replace(/\n/g, '<br/>')
+}
+
+// 電話 href：去掉空白
+function phoneHref(p) {
+  return `tel:${String(p).replace(/\s+/g, '')}`
+}
+
+// 地圖 href：優先 lat/lon；否則用地址
+function mapHref(s) {
+  if (s.lat && s.lon) return `https://www.google.com/maps?q=${s.lat},${s.lon}`
+  if (s.address) return `https://www.google.com/maps?q=${encodeURIComponent(s.address)}`
+  return ''
 }
 
 async function load() {
-  loading.value = true;
-  error.value = "";
+  loading.value = true
+  error.value = ''
   try {
-    const data = await getShelters(cityFilter.value || undefined);
-    raw.value = Array.isArray(data) ? data : [];
+    const data = await getShelters(cityFilter.value || undefined)
+    raw.value = Array.isArray(data) ? data : []
   } catch (e) {
-    error.value = e?.message || String(e);
+    error.value = e?.message || String(e)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
 const filteredSorted = computed(() => {
-  const q = kw.value.trim().toLowerCase();
-  let arr = raw.value;
+  const q = kw.value.trim().toLowerCase()
+  let arr = raw.value
+
+  if (cityFilter.value) {
+    arr = arr.filter(s => String(s.cityCode) === String(cityFilter.value))
+  }
 
   if (q) {
-    arr = arr.filter((s) => {
+    arr = arr.filter(s => {
       const blob = [cityName(s.cityCode), s.name, s.address, s.phone]
-        .join(" ")
-        .toLowerCase();
-      return blob.includes(q);
-    });
+        .join(' ')
+        .toLowerCase()
+      return blob.includes(q)
+    })
   }
 
   // 排序
-  const k = sortKey.value;
-  const asc = sortAsc.value ? 1 : -1;
+  const k = sortKey.value
+  const asc = sortAsc.value ? 1 : -1
   arr = [...arr].sort((a, b) => {
-    const va = (a?.[k] ?? "").toString();
-    const vb = (b?.[k] ?? "").toString();
-    return va.localeCompare(vb, "zh-Hant") * asc;
-  });
-  return arr;
-});
+    const va = (a?.[k] ?? '').toString()
+    const vb = (b?.[k] ?? '').toString()
+    return va.localeCompare(vb, 'zh-Hant') * asc
+  })
+  return arr
+})
 
 function sortBy(k) {
   if (sortKey.value === k) {
-    sortAsc.value = !sortAsc.value;
+    sortAsc.value = !sortAsc.value
   } else {
-    sortKey.value = k;
-    sortAsc.value = true;
+    sortKey.value = k
+    sortAsc.value = true
   }
 }
 
-onMounted(load);
+onMounted(load)
 </script>
 
 <style scoped>
@@ -163,10 +198,29 @@ onMounted(load);
   background: #fff8f4;
   min-height: 100vh;
 }
+
+/* 標題列：左標題、右資料來源 */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
 h1 {
-  margin: 0 0 16px;
+  margin: 0;
   font-size: 22px;
 }
+.source-link {
+  font-size: 13px;
+  color: #1a73e8;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.source-link:hover {
+  text-decoration: underline;
+}
+
 .toolbar {
   display: flex;
   gap: 12px;
@@ -215,7 +269,8 @@ td .map {
   font-size: 12px;
   text-decoration: underline;
 }
+
 .loading { padding: 16px; color: #666; }
-.error { padding: 16px; color: #b00020; }
-.empty { padding: 16px; color: #999; }
+.error   { padding: 16px; color: #b00020; }
+.empty   { padding: 16px; color: #999; }
 </style>
