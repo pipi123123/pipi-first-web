@@ -6,9 +6,11 @@
     <br />
     <router-link to="/publish" class="btn">前往刊登平台</router-link>
     &nbsp;
-    <router-link to="/adopt" class="btn">官方認養資訊</router-link> <!-- ⬅️ 新增 -->
+    <router-link to="/adopt" class="btn">浪浪認養平台</router-link> <!-- ⬅️ 新增 -->
     &nbsp;
-    <router-link to="/shelters" class="btn">查看收容所</router-link> <!-- 新增 -->
+    <router-link to="/shelters" class="btn">收容所平台</router-link> <!-- 新增 -->
+    &nbsp;
+    <router-link class="btn" :to="{ name: 'lost' }">寵物遺失平台</router-link>
   </div>
 </template>
 
