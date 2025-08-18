@@ -1,6 +1,10 @@
+// src/main.js
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
+
+// 載入全域樣式（深色主題、reset 等）
+import './style.css'
 
 // 方便檢查是否有正確載入與執行
 console.log('[App] Booting. BASE_URL =', import.meta.env.BASE_URL)

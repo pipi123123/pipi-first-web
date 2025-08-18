@@ -1,79 +1,223 @@
+/* ===== Global Theme Tokens (High-Contrast) ===== */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  /* Typography baseline */
+  font-family: system-ui, "Noto Sans TC", "Microsoft JhengHei", Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.6;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
   text-rendering: optimizeLegibility;
+  font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Color tokens (Light default) */
+  color-scheme: light;
+  --ink: #0a0a0a;          /* 主文字：近純黑 */
+  --body: #1f2937;         /* 內文：深灰藍（段落/描述用） */
+  --muted: #374151;        /* 次文字（次要資訊） */
+  --line: #d1d5db;         /* 邊框 */
+  --bg: #f9fafb;           /* 站點背景：乾淨白灰 */
+  --surface: #ffffff;      /* 白色卡片 */
+
+  --brand: #ff5722;        /* 珊瑚橘（更飽和） */
+  --brand-600: #e64a19;    /* 橘紅 Hover */
+  --accent: #1d4ed8;       /* 深藍重點色 */
+  --teal: #059fa0;         /* 青綠輔色 */
+
+  --shadow: 0 18px 50px rgba(0, 0, 0, .15);
+
+  color: var(--ink);
+  background-color: var(--bg);
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+/* ---- Dark theme（強制深色：在 <html> 或 :root 加 data-theme="dark"） ---- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #f3f4f6;
+  --body: #e5e7eb;
+  --muted: #cbd5e1;
+  --line: #374151;
+  --bg: #111827;
+  --surface: #1f2937;
+
+  --brand: #ff7043;
+  --brand-600: #f4511e;
+  --accent: #60a5fa;
+  --teal: #06b6d4;
+
+  --shadow: 0 20px 60px rgba(0, 0, 0, .6);
+
+  color: var(--ink);
+  background-color: var(--bg);
 }
 
-body {
+/* ---- Dark theme（跟隨系統，除非明確設定 data-theme="light"） ---- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ink: #f3f4f6;
+    --body: #e5e7eb;
+    --muted: #cbd5e1;
+    --line: #374151;
+    --bg: #111827;
+    --surface: #1f2937;
+
+    --brand: #ff7043;
+    --brand-600: #f4511e;
+    --accent: #60a5fa;
+    --teal: #06b6d4;
+
+    --shadow: 0 20px 60px rgba(0, 0, 0, .6);
+
+    color: var(--ink);
+    background-color: var(--bg);
+  }
+}
+
+/* ===== Reset & Base ===== */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body {
+  padding: 0;
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
-  min-height: 100vh;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
+/* 讓 body 不強制置中，由各頁排版控制 */
+body { display: block; }
 
-button {
-  border-radius: 8px;
+/* #app 作為承載容器即可 */
+#app { min-height: 100vh; }
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--ink);
+  margin: 0 0 .5em;
+  font-weight: 800;
+  line-height: 1.25;
+}
+h1 { font-size: clamp(28px, 4.5vw, 40px); }
+h2 { font-size: clamp(22px, 3vw, 28px); }
+h3 { font-size: clamp(18px, 2.4vw, 20px); }
+
+/* Paragraph & lists */
+p { margin: 0 0 1em; color: var(--body); }   /* 內文更深，避免太淡 */
+.lead { color: var(--body); }               /* Hero/描述同樣用深色 */
+ul, ol { padding-left: 1.25rem; margin: .5rem 0 1rem; }
+
+/* Links（加強對比） */
+a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 700;
+}
+a:hover { opacity: .92; text-decoration: underline; }
+
+/* Buttons (base utility) */
+button,
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  border-radius: 12px;
   border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
+  padding: .7em 1.1em;
+  font-size: 1rem;
+  font-weight: 800;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: .2s ease;
+  text-decoration: none;
 }
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+button:focus-visible,
+.btn:focus-visible {
+  outline: 3px solid rgba(29, 78, 216, .45); /* 深藍焦點 */
+  outline-offset: 2px;
 }
 
+/* Variants */
+.btn-primary {
+  background: var(--brand);
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+.btn-primary:hover { background: var(--brand-600); transform: translateY(-1px); }
+
+.btn-ghost {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+.btn-ghost:hover { border-color: #cbd5e1; transform: translateY(-1px); }
+
+/* Cards (utility) */
 .card {
-  padding: 2em;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
 }
 
-#app {
-  max-width: 1280px;
+/* Media */
+img, svg, video { max-width: 100%; height: auto; display: block; }
+
+/* Container utility */
+.container {
+  width: min(1180px, 92vw);
   margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* Forms */
+input, select, textarea {
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: .6rem .75rem;
+}
+input::placeholder, textarea::placeholder { color: var(--muted); }
+
+/* Tables —— 這裡「加上顏色」避免被深色模式染白 */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #1f2937;             /* <<< 固定深色字，保證可讀 */
+}
+th, td {
+  padding: .6rem .75rem;
+  border: 1px solid var(--line);
+  color: #1f2937;             /* <<< 固定深色字，保證可讀 */
+}
+thead { background: rgba(0,0,0,.04); }
+
+/* Utilities */
+.hidden { display: none !important; }
+.m-0 { margin: 0 !important; }
+.p-0 { padding: 0 !important; }
+.text-center { text-align: center !important; }
+
+/* Light-only / Dark-only helpers */
+.light-only { display: initial; }
+.dark-only  { display: none; }
+
+/* 強制深色時的可見性控制 */
+:root[data-theme="dark"] .light-only { display: none; }
+:root[data-theme="dark"] .dark-only  { display: initial; }
+
+/* 跟隨系統深色（排除強制 light） */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .light-only { display: none; }
+  :root:not([data-theme="light"]) .dark-only  { display: initial; }
+}
+
+/* Focus visible improvement for keyboard users */
+:focus-visible {
+  outline: 3px solid rgba(29, 78, 216, .45);
+  outline-offset: 2px;
 }

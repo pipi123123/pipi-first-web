@@ -14,6 +14,10 @@ const API_BASE = rawBase.replace(/\/+$/, "");
 const MOA_LOST_URL =
   "https://data.moa.gov.tw/Service/OpenData/TransService.aspx?UnitId=IFJomqVzyB0i&IsTransData=1";
 
+// 政府 OpenData（備援）— 全國公立動物收容所收容處理統計表
+const MOA_STATS_URL =
+  "https://data.moa.gov.tw/Service/OpenData/TransService.aspx?UnitId=DyplMIk3U1hf&IsTransData=1";
+
 // -----------------------------
 // 共用：fetch JSON（含 15 秒逾時）
 // -----------------------------
@@ -176,7 +180,25 @@ export function normalizeLost(list) {
   });
 }
 
-// 取第一個有值的欄位（同時支援帶括號版本，例如「品種(品種)」）
+// -----------------------------
+// 收容所「收容處理統計」
+//   - 先打你的後端 /api/shelters/stats（若有）
+//   - 失敗則回退政府 OpenData（MOA_STATS_URL）
+//   - 回傳官方原始欄位：rpt_year / rpt_country / rpt_month / accept_num / adopt_num / adopt_rate / end_num / dead_num
+// -----------------------------
+export async function getShelterStatistics() {
+  try {
+    // 若你的後端提供代理或快取這份資料，優先使用自己的 API
+    return await fetchJson("/api/shelters/stats");
+  } catch {
+    // 後端沒有或失敗 → 直接抓政府開放資料
+    return await getGovData(MOA_STATS_URL);
+  }
+}
+
+// -----------------------------
+// 小工具
+// -----------------------------
 function g(obj, ...keys) {
   for (const k of keys) {
     // 1) 直接 key
@@ -190,12 +212,10 @@ function g(obj, ...keys) {
   return "";
 }
 
-// -----------------------------
-// 小工具
-// -----------------------------
 function strOrEmpty(v) {
   return (v ?? "").toString().trim();
 }
+
 function numOrZero(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
