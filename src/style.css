@@ -1,4 +1,4 @@
-/* ===== Global Theme Tokens (High-Contrast) ===== */
+/* ===== Global Theme Tokens (Professional Gray) ===== */
 :root {
   /* Typography baseline */
   font-family: system-ui, "Noto Sans TC", "Microsoft JhengHei", Avenir, Helvetica, Arial, sans-serif;
@@ -9,68 +9,24 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* Color tokens (Light default) */
+  /* Color tokens */
   color-scheme: light;
-  --ink: #0a0a0a;          /* 主文字：近純黑 */
-  --body: #1f2937;         /* 內文：深灰藍（段落/描述用） */
-  --muted: #374151;        /* 次文字（次要資訊） */
-  --line: #d1d5db;         /* 邊框 */
-  --bg: #f9fafb;           /* 站點背景：乾淨白灰 */
+  --ink: #1f2937;          /* 主文字：深灰 */
+  --body: #374151;         /* 內文：灰藍 */
+  --muted: #6b7280;        /* 次文字 */
+  --line: #d1d5db;         /* 邊框：淺灰 */
+  --bg: #f3f4f6;           /* 背景：淡灰 */
   --surface: #ffffff;      /* 白色卡片 */
 
-  --brand: #ff5722;        /* 珊瑚橘（更飽和） */
-  --brand-600: #e64a19;    /* 橘紅 Hover */
-  --accent: #1d4ed8;       /* 深藍重點色 */
-  --teal: #059fa0;         /* 青綠輔色 */
+  --brand: #4b5563;        /* 主色：石墨灰 */
+  --brand-600: #374151;    /* 深灰 Hover */
+  --accent: #2563eb;       /* 專業藍色 */
+  --teal: #0d9488;         /* 輔助青綠 */
 
-  --shadow: 0 18px 50px rgba(0, 0, 0, .15);
-
-  color: var(--ink);
-  background-color: var(--bg);
-}
-
-/* ---- Dark theme（強制深色：在 <html> 或 :root 加 data-theme="dark"） ---- */
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --ink: #f3f4f6;
-  --body: #e5e7eb;
-  --muted: #cbd5e1;
-  --line: #374151;
-  --bg: #111827;
-  --surface: #1f2937;
-
-  --brand: #ff7043;
-  --brand-600: #f4511e;
-  --accent: #60a5fa;
-  --teal: #06b6d4;
-
-  --shadow: 0 20px 60px rgba(0, 0, 0, .6);
+  --shadow: 0 6px 18px rgba(0, 0, 0, .08);
 
   color: var(--ink);
   background-color: var(--bg);
-}
-
-/* ---- Dark theme（跟隨系統，除非明確設定 data-theme="light"） ---- */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --ink: #f3f4f6;
-    --body: #e5e7eb;
-    --muted: #cbd5e1;
-    --line: #374151;
-    --bg: #111827;
-    --surface: #1f2937;
-
-    --brand: #ff7043;
-    --brand-600: #f4511e;
-    --accent: #60a5fa;
-    --teal: #06b6d4;
-
-    --shadow: 0 20px 60px rgba(0, 0, 0, .6);
-
-    color: var(--ink);
-    background-color: var(--bg);
-  }
 }
 
 /* ===== Reset & Base ===== */
@@ -87,17 +43,14 @@ html, body {
   color: var(--ink);
 }
 
-/* 讓 body 不強制置中，由各頁排版控制 */
 body { display: block; }
-
-/* #app 作為承載容器即可 */
 #app { min-height: 100vh; }
 
 /* Headings */
 h1, h2, h3, h4, h5, h6 {
   color: var(--ink);
   margin: 0 0 .5em;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.25;
 }
 h1 { font-size: clamp(28px, 4.5vw, 40px); }
@@ -105,41 +58,40 @@ h2 { font-size: clamp(22px, 3vw, 28px); }
 h3 { font-size: clamp(18px, 2.4vw, 20px); }
 
 /* Paragraph & lists */
-p { margin: 0 0 1em; color: var(--body); }   /* 內文更深，避免太淡 */
-.lead { color: var(--body); }               /* Hero/描述同樣用深色 */
+p { margin: 0 0 1em; color: var(--body); }
+.lead { color: var(--body); }
 ul, ol { padding-left: 1.25rem; margin: .5rem 0 1rem; }
 
-/* Links（加強對比） */
+/* Links */
 a {
   color: var(--accent);
   text-decoration: none;
-  font-weight: 700;
+  font-weight: 600;
 }
 a:hover { opacity: .92; text-decoration: underline; }
 
-/* Buttons (base utility) */
+/* Buttons */
 button,
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: .5rem;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid transparent;
-  padding: .7em 1.1em;
+  padding: .6em 1em;
   font-size: 1rem;
-  font-weight: 800;
+  font-weight: 600;
   cursor: pointer;
   transition: .2s ease;
   text-decoration: none;
 }
 button:focus-visible,
 .btn:focus-visible {
-  outline: 3px solid rgba(29, 78, 216, .45); /* 深藍焦點 */
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* Variants */
 .btn-primary {
   background: var(--brand);
   color: #fff;
@@ -152,21 +104,20 @@ button:focus-visible,
   color: var(--ink);
   border: 1px solid var(--line);
 }
-.btn-ghost:hover { border-color: #cbd5e1; transform: translateY(-1px); }
+.btn-ghost:hover { border-color: #9ca3af; transform: translateY(-1px); }
 
-/* Cards (utility) */
+/* Cards */
 .card {
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 12px;          /* 移除卡片邊框 */
   box-shadow: var(--shadow);
-  padding: 1.25rem;
+  padding: 1rem;
 }
 
 /* Media */
 img, svg, video { max-width: 100%; height: auto; display: block; }
 
-/* Container utility */
+/* Container */
 .container {
   width: min(1180px, 92vw);
   margin: 0 auto;
@@ -177,24 +128,23 @@ input, select, textarea {
   font: inherit;
   color: var(--ink);
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: .6rem .75rem;
+  border-radius: 8px;           /* 移除輸入框邊框 */
+  padding: .5rem .75rem;
 }
 input::placeholder, textarea::placeholder { color: var(--muted); }
 
-/* Tables —— 這裡「加上顏色」避免被深色模式染白 */
+/* Tables */
 table {
   width: 100%;
   border-collapse: collapse;
-  color: #1f2937;             /* <<< 固定深色字，保證可讀 */
+  color: var(--ink);
 }
 th, td {
   padding: .6rem .75rem;
-  border: 1px solid var(--line);
-  color: #1f2937;             /* <<< 固定深色字，保證可讀 */
+  border: none;                 /* 移除表格格線 */
+  color: var(--ink);
 }
-thead { background: rgba(0,0,0,.04); }
+thead { background: #e5e7eb; }
 
 /* Utilities */
 .hidden { display: none !important; }
@@ -202,22 +152,127 @@ thead { background: rgba(0,0,0,.04); }
 .p-0 { padding: 0 !important; }
 .text-center { text-align: center !important; }
 
-/* Light-only / Dark-only helpers */
-.light-only { display: initial; }
-.dark-only  { display: none; }
-
-/* 強制深色時的可見性控制 */
-:root[data-theme="dark"] .light-only { display: none; }
-:root[data-theme="dark"] .dark-only  { display: initial; }
-
-/* 跟隨系統深色（排除強制 light） */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .light-only { display: none; }
-  :root:not([data-theme="light"]) .dark-only  { display: initial; }
+/* Focus visible */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-/* Focus visible improvement for keyboard users */
-:focus-visible {
-  outline: 3px solid rgba(29, 78, 216, .45);
-  outline-offset: 2px;
+/* ====================================================================== */
+/* =======================  Pages Skin (New)  ============================ */
+/* ====================================================================== */
+
+/* 與首頁同系的藍灰柔和漸層 */
+:root{
+  --page-grad-start: #eaf1ff;
+  --page-grad-mid:   #e7eef8;
+  --page-grad-end:   #f7faff;
+}
+
+/* 通用：柔光藍灰漸層 + 低調暈影 */
+.page-skin{
+  position: relative;
+  background: linear-gradient(180deg, var(--page-grad-start) 0%, var(--page-grad-mid) 38%, var(--page-grad-end) 100%);
+  overflow: hidden;
+}
+.page-skin::after{
+  content:"";
+  position:absolute; inset:-20px; pointer-events:none;
+  background:
+    radial-gradient(1200px 520px at 8% 10%, rgba(30,64,175,.10), transparent 60%),
+    radial-gradient(1000px 520px at 98% 8%, rgba(14,165,233,.08), transparent 60%),
+    radial-gradient(1200px 520px at 50% 120%, rgba(2,6,23,.06), transparent 65%);
+  mix-blend-mode:multiply;
+}
+
+/* 柔色塊（與首頁 hero 呼應） */
+.page-skin .bg-blobs .blob{ position:absolute; filter:blur(50px); opacity:.7; pointer-events:none; }
+.page-skin .bg-blobs .b1{ width:56rem; height:56rem; background:radial-gradient(circle at 50% 50%, #c7d8ff 0%, transparent 70%); top:-18rem; left:-16rem; }
+.page-skin .bg-blobs .b2{ width:50rem; height:50rem; background:radial-gradient(circle at 50% 50%, #bfeaff 0%, transparent 70%); top:-20rem; right:-14rem; }
+
+/* 移除格線背景（原本 page-grid） */
+.page-grid{ position:relative; }
+.page-grid::before{ display:none !important; }
+
+/* 半透明凍玻璃工具列 */
+.toolbar-frost{
+  background: rgba(255,255,255,.75);
+  border: none;                  /* 移除邊框 */
+  box-shadow: 0 10px 28px rgba(2,6,23,.06);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 14px;
+}
+
+/* 卡片微光邊（與首頁卡片一致） */
+.card-raise{
+  border: none;                  /* 移除卡片邊框 */
+  box-shadow: 0 12px 32px rgba(2,6,23,.08);
+}
+
+/* 讓頁面上下有更舒服的留白 */
+.page-skin .container{ padding-top:16px; padding-bottom:24px; }
+
+/* ===== 四個頁面快速套用 ===== */
+.view-adopt.page,
+.view-lost.page{
+  position: relative;
+  background: linear-gradient(180deg, var(--page-grad-start) 0%, var(--page-grad-mid) 38%, var(--page-grad-end) 100%);
+  overflow: hidden;
+}
+.view-adopt.page::after,
+.view-lost.page::after{
+  content:""; position:absolute; inset:-20px; pointer-events:none;
+  background:
+    radial-gradient(1200px 520px at 8% 10%, rgba(30,64,175,.10), transparent 60%),
+    radial-gradient(1000px 520px at 98% 8%, rgba(14,165,233,.08), transparent 60%),
+    radial-gradient(1200px 520px at 50% 120%, rgba(2,6,23,.06), transparent 65%);
+  mix-blend-mode:multiply;
+}
+.view-adopt.page .bg-blobs .blob,
+.view-lost.page .bg-blobs .blob{ position:absolute; filter:blur(50px); opacity:.7; pointer-events:none; }
+.view-adopt.page .bg-blobs .b1,
+.view-lost.page .bg-blobs .b1{ width:56rem; height:56rem; background:radial-gradient(circle at 50% 50%, #c7d8ff 0%, transparent 70%); top:-18rem; left:-16rem; }
+.view-adopt.page .bg-blobs .b2,
+.view-lost.page .bg-blobs .b2{ width:50rem; height:50rem; background:radial-gradient(circle at 50% 50%, #bfeaff 0%, transparent 70%); top:-20rem; right:-14rem; }
+
+.view-shelters.page,
+.view-stats.page{
+  position: relative;
+  background: linear-gradient(180deg, var(--page-grad-start) 0%, var(--page-grad-mid) 38%, var(--page-grad-end) 100%);
+  overflow: hidden;
+}
+.view-shelters.page::after,
+.view-stats.page::after{
+  content:""; position:absolute; inset:-20px; pointer-events:none;
+  background:
+    radial-gradient(1200px 520px at 8% 10%, rgba(30,64,175,.10), transparent 60%),
+    radial-gradient(1000px 520px at 98% 8%, rgba(14,165,233,.08), transparent 60%),
+    radial-gradient(1200px 520px at 50% 120%, rgba(2,6,23,.06), transparent 65%);
+  mix-blend-mode:multiply;
+}
+/* 移除收容所、統計的格線 */
+.view-shelters.page::before,
+.view-stats.page::before{ display:none !important; }
+
+/* 認養/遺失卡片加一點立體感 */
+.view-adopt .card,
+.view-lost .card{
+  border-radius: 16px;
+  border: none;                  /* 移除卡片邊框 */
+  box-shadow: 0 12px 32px rgba(2,6,23,.08);
+}
+
+/* 四頁的篩選列容器 */
+.view-adopt .toolbar,
+.view-lost .toolbar,
+.view-shelters .toolbar,
+.view-stats .toolbar{
+  background: rgba(255,255,255,.75);
+  border: none;                  /* 移除邊框 */
+  box-shadow: 0 10px 28px rgba(2,6,23,.06);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 14px;
+  padding: 10px 12px;
 }

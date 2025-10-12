@@ -1,0 +1,58 @@
+version: '3.9'
+
+services:
+  # ===============================
+  # 🟢 前端：Vue (Vite)
+  # ===============================
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: furfriends_frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./src:/app/src                # ✅ 自動同步前端程式
+      - ./public:/app/public          # ✅ 同步 public 靜態檔案
+      - /app/node_modules             # 避免覆蓋容器內的 node_modules
+    depends_on:
+      - backend
+    restart: always
+
+  # ===============================
+  # 🟠 後端：Node.js + Express + Mongoose
+  # ===============================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: furfriends_backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app                # ✅ 自動同步 backend 資料夾
+      - /app/node_modules
+    environment:
+      - PORT=3000
+      - MONGODB_URI=mongodb://mongo:27017/furfriends   # ⭐ 連接 Docker 內的 MongoDB
+    depends_on:
+      - mongo
+    restart: always
+
+  # ===============================
+  # ⚫ MongoDB 資料庫
+  # ===============================
+  mongo:
+    image: mongo:7
+    container_name: furfriends_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db           # ✅ 永久保存資料
+    restart: always
+
+# ===============================
+# 🗂 Volume 區域：保存 MongoDB 資料
+# ===============================
+volumes:
+  mongo_data:

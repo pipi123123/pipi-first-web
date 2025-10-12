@@ -1,10 +1,31 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-Hant">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + Vue</title>
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#6a82fb" />
+    <title>浪浪認養平台</title>
+
+    <!-- Fonts: Baloo 2（Q 版圓潤字，供標題用） -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Icons（請把檔案放在 /public 根目錄） -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/logo-pi.png" />
+    <link rel="apple-touch-icon" href="/logo-pi.png" />
+
+    <!-- 可選：讓標題預設使用 Baloo 2（若你的 Vue 樣式已指定，可移除此段） -->
+    <style>
+      .title-cute {
+        font-family: "Baloo 2", system-ui, -apple-system, "Segoe UI",
+          "PingFang TC", "Microsoft JhengHei", sans-serif;
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>
