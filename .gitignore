@@ -1,4 +1,6 @@
-# Logs
+# ==========================
+# 📄 Logs
+# ==========================
 logs
 *.log
 npm-debug.log*
@@ -7,18 +9,67 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# ==========================
+# 📦 Node modules
+# ==========================
+node_modules/
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# ==========================
+# 🏗️ Build outputs
+# ==========================
+dist/
+dist-ssr/
+build/
+.temp/
+.cache/
+
+# ==========================
+# ⚙️ Local environment files
+# ==========================
+.env
+.env.local
+.env.development
+.env.production
+backend/.env
+backend/.env.local
+backend/.env.development
+backend/.env.production
+
+# ==========================
+# 💻 Editor / OS files
+# ==========================
+.vscode/
+.idea/
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# ==========================
+# 🐳 Docker / Container
+# ==========================
+docker-data/
+*.pid
+*.seed
+*.bak
+*.tar
+*.gz
+
+# ==========================
+# 🧰 Dependency lock files
+# ==========================
+# 如果你不想在不同環境鎖版本，可取消註解以下幾行
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# ==========================
+# 🔧 Misc
+# ==========================
+coverage/
+*.tgz
+*.zip
+*.tmp
