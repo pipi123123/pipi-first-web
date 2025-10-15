@@ -52,6 +52,7 @@ Thumbs.db
 # 🐳 Docker / Container
 # ==========================
 docker-data/
+mongo_data/          # ✅ MongoDB 資料庫資料夾，不要推上去
 *.pid
 *.seed
 *.bak

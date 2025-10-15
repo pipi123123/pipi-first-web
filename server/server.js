@@ -4,16 +4,32 @@ import cors from 'cors'
 
 const app = express()
 
-// 允許的前端來源（照你原本的）
-const allowed = [
-  'http://localhost:5173',
-  'https://pipi-first-web.onrender.com',
-  'https://pipi123123.github.io'
+/* =========================
+   ✅ CORS 設定（支援多來源）
+   ========================= */
+const allowedOrigins = [
+  'http://localhost:5173',                  // 本地開發
+  'https://pipi-first-web.onrender.com',    // Render 正式版
+  'https://pipi123123.github.io'            // GitHub Pages 版本
 ]
-app.use(cors({ origin: allowed }))
+
+// ✅ 允許多個來源的 CORS 驗證
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      console.warn('[CORS BLOCKED] Origin:', origin)
+      callback(new Error('Not allowed by CORS'))
+    }
+  }
+}))
+
 app.use(express.json())
 
-// 健康檢查
+/* =========================
+   健康檢查 API
+   ========================= */
 app.get('/api/health', (_req, res) => res.json({ ok: true }))
 
 /* =========================
@@ -23,7 +39,7 @@ app.get('/api/health', (_req, res) => res.json({ ok: true }))
 const MOA_ADOPT_HTTPS =
   'https://data.moa.gov.tw/Service/OpenData/TransService.aspx?UnitId=QcbUEzN6E6DL&IsTransData=1'
 
-// 公立收容所清單（你截圖的那筆，UnitId=2thVboChxuKs）
+// 公立收容所清單
 const MOA_SHELTER_HTTPS =
   'https://data.moa.gov.tw/Service/OpenData/TransService.aspx?UnitId=2thVboChxuKs&IsTransData=1'
 
@@ -89,7 +105,7 @@ app.get('/api/adopt', async (_req, res) => {
 })
 
 /* =========================
-   收容所清單 API（公立收容所）
+   收容所清單 API
    GET /api/shelters
    ========================= */
 app.get('/api/shelters', async (_req, res) => {
@@ -140,4 +156,4 @@ app.get('/', (_req, res) => {
    啟動
    ========================= */
 const port = process.env.PORT || 3000
-app.listen(port, () => console.log('API listening on', port))
+app.listen(port, () => console.log('✅ Furfriends API listening on', port))

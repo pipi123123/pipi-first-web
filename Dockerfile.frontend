@@ -1,14 +1,23 @@
-# Vue 前端容器
-FROM node:20-alpine
-
+# ---- 建置階段 ----
+FROM node:20-bullseye AS build
 WORKDIR /app
 
+# 安裝依賴
 COPY package*.json ./
 RUN npm install
 
+# 複製專案所有檔案
 COPY . .
 
-ENV HOST=0.0.0.0
+# ---- 執行階段 ----
+FROM node:20-bullseye
+WORKDIR /app
+
+# 將建置階段的檔案複製進來
+COPY --from=build /app .
+
+# 開放 Vite 開發伺服器 port
 EXPOSE 5173
 
+# 啟動 Vite（一定要 --host 才能從外部訪問）
 CMD ["npm", "run", "dev", "--", "--host"]
