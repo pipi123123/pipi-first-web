@@ -18,6 +18,9 @@ export default defineConfig(({ mode }) => {
   // 開發時，Vite 代理要轉到哪個後端（你的 Express）
   const PROXY_TARGET = process.env.VITE_PROXY_TARGET || 'http://localhost:3000'
 
+  console.log('[Render Build] VITE_API_URL =', VITE_API_URL)
+
+
   return {
     plugins: [vue()],
 
