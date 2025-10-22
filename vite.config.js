@@ -51,7 +51,10 @@ export default defineConfig(({ mode }) => {
 
     // 把 VITE_API_URL 注入前端程式（前端用 import.meta.env.VITE_API_URL 讀）
     define: {
-      'import.meta.env.VITE_API_URL': JSON.stringify(VITE_API_URL),
+      'import.meta.env': {
+        VITE_API_URL: JSON.stringify(process.env.VITE_API_URL || 'https://furfriends-backend.onrender.com')
+      }
     },
+
   }
 })
