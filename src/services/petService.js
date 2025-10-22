@@ -10,6 +10,7 @@ const envBase =
   pick(import.meta.env.VITE_API_URL) ||
   '';
 const API_BASE = envBase ? envBase.replace(/\/+$/, '') : ''; // '' 代表相對路徑，會走 proxy
+console.log('[petService] API_BASE =', API_BASE)
 
 /* ===================== 共用 fetch（15 秒逾時） ===================== */
 async function fetchJson(path, options = {}) {

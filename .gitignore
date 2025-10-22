@@ -26,14 +26,14 @@ build/
 # ==========================
 # ⚙️ Local environment files
 # ==========================
-#.env
-#.env.local
-#.env.development
-#.env.production
-#backend/.env
-#backend/.env.local
-#backend/.env.development
-#backend/.env.production
+.env
+.env.local
+.env.development
+.env.production
+backend/.env
+backend/.env.local
+backend/.env.development
+backend/.env.production
 
 # ==========================
 # 💻 Editor / OS files
