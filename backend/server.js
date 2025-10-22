@@ -22,7 +22,6 @@ if (!MONGODB_URI) {
 }
 
 /* ================== MongoDB 連線 ================== */
-// 移除已棄用參數（useNewUrlParser/useUnifiedTopology）；指定 dbName 即可
 mongoose
   .connect(MONGODB_URI, { dbName: 'furfriends' })
   .then(() => console.log('[DB] MongoDB Atlas 已連線'))
@@ -31,7 +30,6 @@ mongoose
     process.exit(1)
   })
 
-// 連線狀態輔助路由
 app.get('/api/db/ping', async (_req, res) => {
   try {
     await mongoose.connection.db.admin().ping()
@@ -48,9 +46,8 @@ const petSchema = new mongoose.Schema(
     image: { type: String, required: true },
     description: { type: String, required: true },
   },
-  { timestamps: true } // 自動 createdAt / updatedAt
+  { timestamps: true }
 )
-
 const Pet = mongoose.model('Pet', petSchema)
 
 /* ============ 全域中介層：請求日誌 + 回應標頭 ============ */
@@ -65,13 +62,11 @@ app.use((req, res, next) => {
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'backend', time: new Date().toISOString() })
 })
-
 app.get('/api/echo', (req, res) => {
   res.json({ ok: true, path: req.path, query: req.query, time: new Date().toISOString() })
 })
 
-/* ================== Pets：MongoDB 版 CRUD ================== */
-// 取得清單（新到舊）
+/* ================== Pets：MongoDB CRUD ================== */
 app.get('/api/pets', async (_req, res) => {
   try {
     const pets = await Pet.find().sort({ createdAt: -1 })
@@ -82,7 +77,6 @@ app.get('/api/pets', async (_req, res) => {
   }
 })
 
-// 新增
 app.post('/api/pets', async (req, res) => {
   try {
     const { name, image, description } = req.body || {}
@@ -97,7 +91,6 @@ app.post('/api/pets', async (req, res) => {
   }
 })
 
-// 更新
 app.put('/api/pets/:id', async (req, res) => {
   try {
     const { id } = req.params
@@ -116,7 +109,6 @@ app.put('/api/pets/:id', async (req, res) => {
   }
 })
 
-// 刪除
 app.delete('/api/pets/:id', async (req, res) => {
   try {
     const { id } = req.params
@@ -130,6 +122,44 @@ app.delete('/api/pets/:id', async (req, res) => {
   }
 })
 
+/* ================== 強化版 fetchRaw (重試 + timeout) ================== */
+async function fetchRaw(url, timeoutMs = 20000, maxRetry = 3) {
+  for (let attempt = 1; attempt <= maxRetry; attempt++) {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      console.log(`[fetchRaw] (${attempt}/${maxRetry}) Fetching: ${url}`)
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          Accept: 'application/json, text/plain, */*',
+          'User-Agent': 'furfriends/1.0',
+          'Cache-Control': 'no-cache',
+        },
+        cache: 'no-store',
+      })
+      const raw = await res.text()
+      if (!res.ok) {
+        console.warn(`[fetchRaw] HTTP ${res.status} (${attempt}/${maxRetry})`)
+        if (attempt < maxRetry) {
+          await new Promise(r => setTimeout(r, 2000))
+          continue
+        }
+      }
+      return { ok: res.ok, status: res.status, raw }
+    } catch (err) {
+      console.warn(`[fetchRaw] Error at attempt ${attempt}:`, err.message)
+      if (attempt < maxRetry) {
+        await new Promise(r => setTimeout(r, 2000))
+        continue
+      }
+      return { ok: false, status: 500, raw: `fetch failed after ${maxRetry} attempts: ${err.message}` }
+    } finally {
+      clearTimeout(timeout)
+    }
+  }
+}
+
 /* ================== 政府資料代理 + 快取 ================== */
 const cache = Object.create(null)
 const DEFAULT_TTL = 10 * 60 * 1000 // 10 分鐘
@@ -139,15 +169,14 @@ async function fetchWithCache(key, url, { ttl = DEFAULT_TTL } = {}) {
   if (cache[key] && now - cache[key].ts < ttl) {
     return { ok: true, data: cache[key].data, fromCache: true }
   }
-  const r = await fetch(url, { headers: { Accept: 'application/json' } })
-  const txt = await r.text()
+  const { ok, status, raw } = await fetchRaw(url)
   try {
-    const json = JSON.parse(txt)
+    const json = JSON.parse(raw)
     cache[key] = { ts: now, data: json }
     return { ok: true, data: json, fromCache: false }
   } catch {
     if (cache[key]) return { ok: true, data: cache[key].data, fromCache: true }
-    return { ok: false, status: r.status, sample: txt.slice(0, 200) }
+    return { ok: false, status, sample: raw.slice(0, 200) }
   }
 }
 
@@ -172,26 +201,18 @@ async function proxyJsonWithLog(reqPath, res, key, upstream, options) {
 }
 
 /* ================== 代理路由 ================== */
-const ADOPT_URL =
-  'https://data.moa.gov.tw/Service/OpenData/TransService.aspx?UnitId=QcbUEzN6E6DL&IsTransData=1'
-app.get('/api/adopt', (req, res) =>
-  proxyJsonWithLog('/api/adopt', res, 'adopt', ADOPT_URL, { ttl: DEFAULT_TTL })
-)
+const ADOPT_URL = 'https://data.moa.gov.tw/Service/OpenData/TransService.aspx?UnitId=QcbUEzN6E6DL&IsTransData=1'
+app.get('/api/adopt', (req, res) => proxyJsonWithLog('/api/adopt', res, 'adopt', ADOPT_URL, { ttl: DEFAULT_TTL }))
 
-const LOST_URL =
-  'https://data.moa.gov.tw/Service/OpenData/TransService.aspx?UnitId=IFJomqVzyB0i&IsTransData=1'
-app.get('/api/lost', (req, res) =>
-  proxyJsonWithLog('/api/lost', res, 'lost', LOST_URL, { ttl: DEFAULT_TTL })
-)
+const LOST_URL = 'https://data.moa.gov.tw/Service/OpenData/TransService.aspx?UnitId=IFJomqVzyB0i&IsTransData=1'
+app.get('/api/lost', (req, res) => proxyJsonWithLog('/api/lost', res, 'lost', LOST_URL, { ttl: DEFAULT_TTL }))
 
-const STATS_URL =
-  'https://data.moa.gov.tw/Service/OpenData/TransService.aspx?UnitId=DyplMIk3U1hf&IsTransData=1'
+const STATS_URL = 'https://data.moa.gov.tw/Service/OpenData/TransService.aspx?UnitId=DyplMIk3U1hf&IsTransData=1'
 app.get('/api/shelters/stats', (req, res) =>
   proxyJsonWithLog('/api/shelters/stats', res, 'stats', STATS_URL, { ttl: DEFAULT_TTL })
 )
 
-const SHELTERS_URL =
-  'https://data.moa.gov.tw/Service/OpenData/TransService.aspx?UnitId=2thVboChxuKs&IsTransData=1'
+const SHELTERS_URL = 'https://data.moa.gov.tw/Service/OpenData/TransService.aspx?UnitId=2thVboChxuKs&IsTransData=1'
 app.get('/api/shelters', (req, res) =>
   proxyJsonWithLog('/api/shelters', res, 'shelters', SHELTERS_URL, { ttl: DEFAULT_TTL })
 )
@@ -200,8 +221,6 @@ app.get('/api/shelters', (req, res) =>
 const server = app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`)
 })
-
-// 優雅關閉
 const shutdown = () => {
   console.log('\n[SYS] Shutting down...')
   server.close(() => {
